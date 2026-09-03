@@ -31,6 +31,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	// postgresql 의존성 추가
   runtimeOnly 'org.postgresql:postgresql'
+	// docker-compose healthcheck(/actuator/health)용
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
 tasks.named('test') {
 	useJUnitPlatform()

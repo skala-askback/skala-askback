@@ -50,6 +50,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy # postgres의 healthcheck가 통과한 뒤에만 backend 기동
+    healthcheck:
+      # frontend(nginx)가 backend 부팅이 끝나기 전에 프록시를 시작해서 502가 나는 걸 막기 위해,
+      # 스프링부트가 실제로 요청을 받을 준비가 됐는지를 /actuator/health로 확인
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s # 스프링부트 최초 기동 시간을 감안한 유예 기간
     networks:
       - askback-net
     # nginx가 /api를 backend:8080으로 프록시하므로 host에 노출할 필요는 없지만,
@@ -66,7 +74,8 @@ services:
     container_name: askback-frontend
     restart: unless-stopped
     depends_on:
-      - backend # backend 컨테이너가 (기동은) 시작된 뒤에 뜨도록
+      backend:
+        condition: service_healthy # backend가 실제로 요청을 받을 수 있는 상태가 된 뒤에만 frontend 기동 (502 방지)
     ports:
       - "8080:80" # host의 8080 → 컨테이너의 80(nginx) → localhost:8080 접속 포인트
     networks:
