@@ -30,7 +30,7 @@
 
     <div class="two-col">
       <div class="card">
-        <div class="card-title">처리 상태</div>
+        <div class="card-title">답변 처리 상태</div>
         <div class="card-sub">AI 답변 생성 중 · AI 답변 완료 · 교수 검토 대기 · 교수 답변 완료</div>
         <ChartCanvas type="bar" :data="statusChart" :options="statusOpt" :height="180" />
         <div class="legend">
@@ -38,7 +38,7 @@
         </div>
       </div>
       <div class="card">
-        <div class="card-title">AI 신뢰도 분포</div>
+        <div class="card-title">AI 답변 신뢰도 분포</div>
         <div class="card-sub">70 미만은 교수 검토로 넘어갑니다</div>
         <ChartCanvas type="bar" :data="confChart" :options="confOpt" :height="180" />
       </div>
@@ -51,7 +51,7 @@
         <ChartCanvas type="bar" :data="conceptChart" :options="hBar" :height="Math.max(160, d.concepts.length * 32)" />
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">검토 대기 큐</div><router-link to="/questions" class="link">전체 보기 ›</router-link></div>
+        <div class="card-head"><div class="card-title">검토 대기중인 질문</div><router-link to="/questions" class="link">전체 보기 ›</router-link></div>
         <div v-if="!d.reviewQueue.length" class="empty">검토할 질문이 없습니다.</div>
         <router-link v-for="q in d.reviewQueue.slice(0, 5)" :key="q.id" :to="'/questions/' + q.id" class="queue-row">
           <div class="queue-main">
@@ -118,8 +118,8 @@ const fmt = s => s ? new Date(s).toLocaleString('ko-KR', { month: '2-digit', day
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .card { background: #fff; border-radius: 16px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.06); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.card-title { font-size: 14px; font-weight: 800; color: #0f172a; }
-.card-sub { font-size: 12px; color: #94a3b8; margin-top: -4px; }
+.card-title { font-size: 14px; font-weight: 800; color: #0f172a; line-height: 1.5; }
+.card-sub { font-size: 12px; color: #94a3b8; line-height: 1.5; margin-top: 2px; }
 .link { font-size: 12px; font-weight: 700; color: #6b35ff; }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #64748b; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
@@ -135,11 +135,11 @@ const fmt = s => s ? new Date(s).toLocaleString('ko-KR', { month: '2-digit', day
 .conf.lo { background: #fef3c7; color: #b45309; } .conf.hi { background: #dbeafe; color: #1d4ed8; } .conf.none { background: #f1f5f9; color: #64748b; }
 .ai-badge { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 5px; background: #6b35ff; color: #fff; }
 .suggestions { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
-.suggestion { background: #f5f3ff; border: 1px solid #ddd6fe; border-left: 4px solid #a78bfa; border-radius: 12px; padding: 14px; }
-.sg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-.sg-concept { font-size: 13.5px; font-weight: 800; color: #1e1b4b; }
-.sg-count { font-size: 11px; color: #6b35ff; font-weight: 700; white-space: nowrap; }
+.suggestion { background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 12px; padding: 14px; }
+.sg-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.sg-concept { font-size: 13.5px; font-weight: 800; color: #1e1b4b; line-height: 1.5; }
+.sg-count { font-size: 11px; color: #6b35ff; font-weight: 700; line-height: 1.5; white-space: nowrap; }
 .sg-text { font-size: 13px; color: #374151; line-height: 1.6; }
-.sg-ref { font-size: 11.5px; color: #7c6fb0; margin-top: 6px; font-weight: 600; }
+.sg-ref { font-size: 11.5px; color: #7c6fb0; line-height: 1.5; margin-top: 8px; font-weight: 600; }
 @media (max-width: 1000px) { .two-col { grid-template-columns: 1fr; } .stat-cards { grid-template-columns: repeat(2, 1fr); } }
 </style>
