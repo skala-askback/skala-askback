@@ -1,29 +1,28 @@
-# 3개 컨테이너(mariadb / backend / frontend)를 하나의 네트워크로 묶어서 기동하는 compose 파일
+# 3개 컨테이너(postgres / backend / frontend)를 하나의 네트워크로 묶어서 기동하는 compose 파일
 
 services:
   # ---------------------------------------------------------------
-  # 1) MariaDB: 공식 이미지를 그대로 사용 (직접 빌드하지 않음)
+  # 1) PostgreSQL: 공식 이미지를 그대로 사용 (직접 빌드하지 않음)
   # ---------------------------------------------------------------
-  mariadb:
-    image: mariadb:11 # LTS 버전 고정
-    container_name: askback-mariadb
+  postgres:
+    image: postgres:16 # LTS 버전 고정
+    container_name: askback-postgres
     restart: unless-stopped
     environment:
-      MARIADB_DATABASE: askback # 최초 기동 시 자동 생성될 DB 이름
-      MARIADB_USER: askback # 애플리케이션이 사용할 계정
-      MARIADB_PASSWORD: askback # 위 계정의 비밀번호
-      MARIADB_ROOT_PASSWORD: askback_root # root 계정 비밀번호 (관리용)
+      POSTGRES_DB: askback # 최초 기동 시 자동 생성될 DB 이름
+      POSTGRES_USER: askback # 애플리케이션이 사용할 계정
+      POSTGRES_PASSWORD: askback # 위 계정의 비밀번호
     volumes:
       # DB 데이터 파일을 named volume에 저장 → 컨테이너를 지웠다 다시 만들어도 데이터 유지
-      - mariadb_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
       # db/ 폴더 안의 *.sql 을 컨테이너의 초기화 디렉터리에 마운트
-      # → mariadb 공식 이미지는 "데이터 볼륨이 비어있는 최초 기동 시"에만
+      # → postgres 공식 이미지는 "데이터 볼륨이 비어있는 최초 기동 시"에만
       #   이 디렉터리 안의 .sql 파일을 알파벳 순서로 자동 실행해줌 (스키마 + 목데이터 세팅)
       - ./db:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # backend가 DB보다 먼저 떠서 연결 실패하는 걸 막기 위해,
       # "DB가 실제로 요청을 받을 준비가 됐는지"를 주기적으로 확인
-      test: ["CMD", "mariadb-admin", "ping", "-u", "root", "-paskback_root"]
+      test: ["CMD-SHELL", "pg_isready -U askback -d askback"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -31,7 +30,7 @@ services:
       - askback-net
     # 로컬에서 DB 클라이언트로 직접 접속해서 디버깅하고 싶을 때만 주석 해제
     # ports:
-    #   - "3306:3306"
+    #   - "5432:5432"
 
   # ---------------------------------------------------------------
   # 2) Backend: Spring Boot (backend/Dockerfile로 직접 빌드)
@@ -43,14 +42,14 @@ services:
     restart: unless-stopped
     environment:
       # application.yml의 ${DB_HOST:localhost} 같은 플레이스홀더를 여기서 덮어씀
-      DB_HOST: mariadb # compose 네트워크 안에서는 서비스명이 곧 호스트명
-      DB_PORT: 3306
-      DB_NAME: askback # mariadb 서비스의 MARIADB_DATABASE와 일치해야 함
-      DB_USER: askback # mariadb 서비스의 MARIADB_USER와 일치해야 함
-      DB_PASSWORD: askback # mariadb 서비스의 MARIADB_PASSWORD와 일치해야 함
+      DB_HOST: postgres # compose 네트워크 안에서는 서비스명이 곧 호스트명
+      DB_PORT: 5432
+      DB_NAME: askback # postgres 서비스의 POSTGRES_DB와 일치해야 함
+      DB_USER: askback # postgres 서비스의 POSTGRES_USER와 일치해야 함
+      DB_PASSWORD: askback # postgres 서비스의 POSTGRES_PASSWORD와 일치해야 함
     depends_on:
-      mariadb:
-        condition: service_healthy # mariadb의 healthcheck가 통과한 뒤에만 backend 기동
+      postgres:
+        condition: service_healthy # postgres의 healthcheck가 통과한 뒤에만 backend 기동
     networks:
       - askback-net
     # nginx가 /api를 backend:8080으로 프록시하므로 host에 노출할 필요는 없지만,
@@ -79,7 +78,7 @@ networks:
   askback-net:
     driver: bridge
 
-# MariaDB 데이터 영속화용 named volume
+# PostgreSQL 데이터 영속화용 named volume
 # 삭제하고 싶으면(=초기화 스크립트 재실행하고 싶으면) `docker compose down -v`
 volumes:
-  mariadb_data:
+  postgres_data:

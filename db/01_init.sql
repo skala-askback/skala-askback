@@ -1,6 +1,6 @@
 -- user table 생성
 CREATE TABLE IF NOT EXISTS users (
-    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id             BIGSERIAL PRIMARY KEY,
     login_id       VARCHAR(50)  NOT NULL,
     password_hash  VARCHAR(255) NOT NULL,
     name           VARCHAR(50)  NOT NULL,
