@@ -2,7 +2,7 @@ spring:
   application:
     name: askback
   datasource:
-    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:askback}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:askback}
     username: ${DB_USER:askback}
     password: ${DB_PASSWORD:askback}
   jpa:

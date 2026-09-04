@@ -1,85 +1,313 @@
-# 3개 컨테이너(mariadb / backend / frontend)를 하나의 네트워크로 묶어서 기동하는 compose 파일
+# aSkback 전체 아키텍처를 docker compose 로 옮긴 설계 문서
+# docs/images/architecture.png 의 상자 하나가 여기 서비스 하나다.
+#
+# 쿠버네티스 개념을 compose 에서는 이렇게 표현했다
+#   Namespace          → 주석 구획 (compose 에는 네임스페이스가 없다)
+#   Deployment ×N      → deploy.replicas: N   (여러 개 뜨는 서비스는 container_name 을 안 붙인다)
+#   HPA                → 주석으로만 표기 (compose 는 자동 증설이 없다)
+#   StatefulSet + PVC  → 고정 container_name + named volume
+#   CronJob            → profiles: [batch] 로 분리, `docker compose run batch` 로 수동 실행
+#   ConfigMap / Secret → ${변수:-기본값} 환경변수. 실제 값은 .env 나 배포 도구가 넣는다
+#   Ingress            → nginx 컨테이너가 80 포트를 열고 frontend / backend 로 나눠 보낸다
+#
+# 지금 코드가 있는 건 frontend, backend, db/01_init.sql 뿐이다.
+# rag-server, ingress 설정, 관측 도구 설정 파일은 아직 없다 (아래 각 서비스 주석 참고).
 
 services:
-  # ---------------------------------------------------------------
-  # 1) MariaDB: 공식 이미지를 그대로 사용 (직접 빌드하지 않음)
-  # ---------------------------------------------------------------
-  mariadb:
-    image: mariadb:11 # LTS 버전 고정
-    container_name: askback-mariadb
+
+  # ===============================================================
+  # 진입 — Ingress Controller
+  # ===============================================================
+  ingress:
+    image: nginx:1.27
+    container_name: askback-ingress
+    restart: unless-stopped
+    ports:
+      - "80:80" # 사용자가 들어오는 유일한 문. 실제 배포에서는 443 + TLS 인증서
+    volumes:
+      # /        → frontend:80
+      # /api/**  → backend:8080
+      # (ingress/nginx.conf 는 아직 없음)
+      - ./ingress/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - askback-net
+
+  # ===============================================================
+  # ns: askback-app — 프론트, API, AI 워커
+  # ===============================================================
+  frontend:
+    build:
+      context: ./frontend # Vue 빌드 결과물을 nginx 로 서빙
+    restart: unless-stopped
+    deploy:
+      replicas: 2 # Deployment ×2
+    networks:
+      - askback-net
+    # 포트는 ingress 가 연다. 여기서는 열지 않는다
+
+  backend:
+    # 아키텍처의 API Server. 질문 등록, 목록, 교수 답변 같은 동기 API 담당
+    build:
+      context: ./backend
+    restart: unless-stopped
+    deploy:
+      replicas: 3 # Deployment ×3, 쿠버네티스에서는 HPA 로 CPU 기준 자동 증설
+    environment:
+      SPRING_PROFILES_ACTIVE: api
+      # 운영 DB
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${OP_DB_NAME:-askback}
+      DB_USER: ${OP_DB_USER:-askback}
+      DB_PASSWORD: ${OP_DB_PASSWORD:-askback}
+      # AI 작업을 넣는 큐
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # 강의자료 원본 업로드 대상
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-askback}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-askback_minio}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - askback-net
+
+  ai-worker:
+    # 큐에서 작업을 꺼내 RAG 서버에 넘기고, 결과를 운영 DB 에 쓰고, ai_job 상태를 바꾼다.
+    # backend 와 같은 코드베이스, 프로필만 다르다
+    build:
+      context: ./backend
+    restart: unless-stopped
+    deploy:
+      replicas: 2 # Deployment ×2
+    environment:
+      SPRING_PROFILES_ACTIVE: worker
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${OP_DB_NAME:-askback}
+      DB_USER: ${OP_DB_USER:-askback}
+      DB_PASSWORD: ${OP_DB_PASSWORD:-askback}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RAG_SERVER_URL: http://rag-server:8000
+      AI_CONFIDENCE_THRESHOLD: ${AI_CONFIDENCE_THRESHOLD:-70} # 이 값 미만이면 교수 검토로
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rag-server:
+        condition: service_started
+    networks:
+      - askback-net
+
+  # ===============================================================
+  # ns: askback-ai — RAG 서버
+  # ===============================================================
+  rag-server:
+    # FastAPI. 임베딩 모델을 프로세스 안에 올리고, 지식 DB 벡터 검색, 프롬프트 조립,
+    # Claude 호출, 신뢰도 계산까지 맡는다. (rag-server/ 코드는 아직 없음)
+    build:
+      context: ./rag-server
+    restart: unless-stopped
+    deploy:
+      replicas: 2 # Deployment ×2, 쿠버네티스에서는 HPA
+    environment:
+      # 지식 DB
+      KNOWLEDGE_DB_HOST: postgres-knowledge
+      KNOWLEDGE_DB_PORT: 5432
+      KNOWLEDGE_DB_NAME: ${KN_DB_NAME:-askback_knowledge}
+      KNOWLEDGE_DB_USER: ${KN_DB_USER:-askback}
+      KNOWLEDGE_DB_PASSWORD: ${KN_DB_PASSWORD:-askback}
+      # 모델 설정 (쿠버네티스에서는 ConfigMap)
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      LLM_MODEL: ${LLM_MODEL:-claude-sonnet-5}
+      # API 키 (쿠버네티스에서는 Secret)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      postgres-knowledge:
+        condition: service_healthy
+    networks:
+      - askback-net
+
+  # ===============================================================
+  # ns: askback-data — 큐, DB 2개, 파일 저장소
+  # ===============================================================
+  redis:
+    # 작업 큐 (Streams) 와 캐시. 큐가 날아가면 안 되니 디스크에 기록한다
+    image: redis:7
+    container_name: askback-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data # StatefulSet + PVC
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - askback-net
+
+  postgres:
+    # 운영 DB. 사람이 만든 데이터 — 질문, 답변, 퀴즈, 리포트, ai_job
+    image: postgres:16
+    container_name: askback-postgres
     restart: unless-stopped
     environment:
-      MARIADB_DATABASE: askback # 최초 기동 시 자동 생성될 DB 이름
-      MARIADB_USER: askback # 애플리케이션이 사용할 계정
-      MARIADB_PASSWORD: askback # 위 계정의 비밀번호
-      MARIADB_ROOT_PASSWORD: askback_root # root 계정 비밀번호 (관리용)
+      POSTGRES_DB: ${OP_DB_NAME:-askback}
+      POSTGRES_USER: ${OP_DB_USER:-askback}
+      POSTGRES_PASSWORD: ${OP_DB_PASSWORD:-askback}
     volumes:
-      # DB 데이터 파일을 named volume에 저장 → 컨테이너를 지웠다 다시 만들어도 데이터 유지
-      - mariadb_data:/var/lib/mysql
-      # db/ 폴더 안의 *.sql 을 컨테이너의 초기화 디렉터리에 마운트
-      # → mariadb 공식 이미지는 "데이터 볼륨이 비어있는 최초 기동 시"에만
-      #   이 디렉터리 안의 .sql 파일을 알파벳 순서로 자동 실행해줌 (스키마 + 목데이터 세팅)
-      - ./db:/docker-entrypoint-initdb.d:ro
+      - postgres_data:/var/lib/postgresql/data # StatefulSet + PVC
+      - ./db:/docker-entrypoint-initdb.d:ro # 최초 기동 시 db/*.sql 자동 실행
     healthcheck:
-      # backend가 DB보다 먼저 떠서 연결 실패하는 걸 막기 위해,
-      # "DB가 실제로 요청을 받을 준비가 됐는지"를 주기적으로 확인
-      test: ["CMD", "mariadb-admin", "ping", "-u", "root", "-paskback_root"]
+      test: ["CMD-SHELL", "pg_isready -U ${OP_DB_USER:-askback} -d ${OP_DB_NAME:-askback}"]
       interval: 5s
       timeout: 5s
       retries: 10
     networks:
       - askback-net
-    # 로컬에서 DB 클라이언트로 직접 접속해서 디버깅하고 싶을 때만 주석 해제
-    # ports:
-    #   - "3306:3306"
 
-  # ---------------------------------------------------------------
-  # 2) Backend: Spring Boot (backend/Dockerfile로 직접 빌드)
-  # ---------------------------------------------------------------
-  backend:
-    build:
-      context: ./backend # backend/Dockerfile을 이용해 이미지 빌드
-    container_name: askback-backend
+  postgres-knowledge:
+    # 지식 DB. 원본에서 다시 만들 수 있는 데이터 — 강의자료 조각과 벡터.
+    # pgvector 확장이 들어 있는 이미지를 쓴다
+    image: pgvector/pgvector:pg16
+    container_name: askback-postgres-knowledge
     restart: unless-stopped
     environment:
-      # application.yml의 ${DB_HOST:localhost} 같은 플레이스홀더를 여기서 덮어씀
-      DB_HOST: mariadb # compose 네트워크 안에서는 서비스명이 곧 호스트명
-      DB_PORT: 3306
-      DB_NAME: askback # mariadb 서비스의 MARIADB_DATABASE와 일치해야 함
-      DB_USER: askback # mariadb 서비스의 MARIADB_USER와 일치해야 함
-      DB_PASSWORD: askback # mariadb 서비스의 MARIADB_PASSWORD와 일치해야 함
-    depends_on:
-      mariadb:
-        condition: service_healthy # mariadb의 healthcheck가 통과한 뒤에만 backend 기동
+      POSTGRES_DB: ${KN_DB_NAME:-askback_knowledge}
+      POSTGRES_USER: ${KN_DB_USER:-askback}
+      POSTGRES_PASSWORD: ${KN_DB_PASSWORD:-askback}
+    volumes:
+      - postgres_knowledge_data:/var/lib/postgresql/data # StatefulSet + PVC
+      - ./db/knowledge:/docker-entrypoint-initdb.d:ro # lecture_material, knowledge_entry, knowledge_chunk (아직 없음)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KN_DB_USER:-askback} -d ${KN_DB_NAME:-askback_knowledge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
       - askback-net
-    # nginx가 /api를 backend:8080으로 프록시하므로 host에 노출할 필요는 없지만,
-    # 백엔드 API를 직접 호출해서 디버깅하고 싶을 때만 주석 해제
-    # ports:
-    #   - "8081:8080"
 
-  # ---------------------------------------------------------------
-  # 3) Frontend: Vue 빌드 결과물을 nginx로 서빙 (frontend/Dockerfile로 직접 빌드)
-  # ---------------------------------------------------------------
-  frontend:
-    build:
-      context: ./frontend # frontend/Dockerfile을 이용해 이미지 빌드
-    container_name: askback-frontend
+  minio:
+    # 강의자료 원본 파일 (PDF, PPT). S3 와 같은 방식으로 쓰는 파일 창고
+    image: minio/minio:latest
+    container_name: askback-minio
     restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-askback}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-askback_minio}
+    volumes:
+      - minio_data:/data # StatefulSet + PVC
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - askback-net
+    # 9000 = API, 9001 = 웹 콘솔. 관리자가 파일을 눈으로 볼 때만 주석 해제
+    # ports:
+    #   - "9001:9001"
+
+  # ===============================================================
+  # ns: askback-batch — CronJob
+  # ===============================================================
+  batch:
+    # 쿠버네티스에서는 CronJob 으로 밤마다 돈다.
+    # compose 에는 스케줄러가 없어 profiles 로 빼 두고 `docker compose run batch` 로 수동 실행.
+    # 하는 일: MinIO 에서 강의자료를 꺼내 조각내고 RAG 서버로 벡터화해 지식 DB 에 넣기,
+    #          약점 리포트와 커리큘럼 리포트 생성, 오래된 조각 정리
+    build:
+      context: ./backend
+    profiles: ["batch"]
+    environment:
+      SPRING_PROFILES_ACTIVE: batch
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${OP_DB_NAME:-askback}
+      DB_USER: ${OP_DB_USER:-askback}
+      DB_PASSWORD: ${OP_DB_PASSWORD:-askback}
+      KNOWLEDGE_DB_HOST: postgres-knowledge
+      KNOWLEDGE_DB_PORT: 5432
+      KNOWLEDGE_DB_NAME: ${KN_DB_NAME:-askback_knowledge}
+      KNOWLEDGE_DB_USER: ${KN_DB_USER:-askback}
+      KNOWLEDGE_DB_PASSWORD: ${KN_DB_PASSWORD:-askback}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-askback}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-askback_minio}
+      RAG_SERVER_URL: http://rag-server:8000
     depends_on:
-      - backend # backend 컨테이너가 (기동은) 시작된 뒤에 뜨도록
-    ports:
-      - "8080:80" # host의 8080 → 컨테이너의 80(nginx) → localhost:8080 접속 포인트
+      - postgres
+      - postgres-knowledge
+      - minio
+      - rag-server
     networks:
       - askback-net
 
-# 서비스 간 통신을 위한 전용 네트워크
-# (frontend가 nginx.conf에서 http://backend:8080 으로 프록시하려면 같은 네트워크에 있어야 함)
+  # ===============================================================
+  # ns: askback-ops — 관측
+  # ===============================================================
+  prometheus:
+    # 각 서비스의 /actuator/prometheus 를 긁어 지표를 모은다 (ops/prometheus.yml 은 아직 없음)
+    image: prom/prometheus:latest
+    container_name: askback-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - askback-net
+
+  loki:
+    # 로그 모음. 각 컨테이너 로그는 promtail 이나 Docker 로깅 드라이버가 여기로 보낸다
+    image: grafana/loki:latest
+    container_name: askback-loki
+    restart: unless-stopped
+    volumes:
+      - loki_data:/loki
+    networks:
+      - askback-net
+
+  grafana:
+    # 대시보드. Prometheus 지표와 Loki 로그를 한 화면에서 본다
+    image: grafana/grafana:latest
+    container_name: askback-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - askback-net
+    # 운영자만 보는 화면. 열 때만 주석 해제
+    # ports:
+    #   - "3000:3000"
+
+# 서비스 간 통신 네트워크. 서비스 이름이 곧 호스트 이름이다
 networks:
   askback-net:
     driver: bridge
 
-# MariaDB 데이터 영속화용 named volume
-# 삭제하고 싶으면(=초기화 스크립트 재실행하고 싶으면) `docker compose down -v`
+# StatefulSet 의 PVC 에 해당. 컨테이너를 지워도 데이터는 남는다.
+# 전부 지우려면 `docker compose down -v`
 volumes:
-  mariadb_data:
+  redis_data:
+  postgres_data:
+  postgres_knowledge_data:
+  minio_data:
+  prometheus_data:
+  loki_data:
+  grafana_data:
