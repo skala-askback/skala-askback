@@ -48,7 +48,7 @@ import { ref, computed } from 'vue'
 import { session, questions, store, STATUS } from '../data/store'
 const isProf = computed(() => session.user?.role === 'professor')
 const filter = ref('all')
-const ORDER = { REVIEW: 0, AI_PENDING: 1, AI_ANSWERED: 2, ANSWERED: 3 }
+const ORDER = { AI_PENDING: 0, REVIEW: 1, AI_ANSWERED: 2, ANSWERED: 3 }
 const list = computed(() => {
   store.version
   const l = isProf.value ? questions.all() : questions.mine(session.user?.id)
@@ -90,8 +90,8 @@ const fmt = s => s ? new Date(s).toLocaleString('ko-KR', { month: '2-digit', day
 .status-chip.ai { background: #dbeafe; color: #1d4ed8; }
 .status-chip.review { background: #fef3c7; color: #b45309; }
 .status-chip.done { background: #dcfce7; color: #15803d; }
-.dot { width: 6px; height: 6px; border-radius: 50%; background: #6b35ff; animation: blink 1s infinite; }
-@keyframes blink { 50% { opacity: .2; } }
+.dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid rgba(107, 53, 255, .25); border-top-color: #6b35ff; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .chev { color: #cbd5e1; font-size: 18px; }
 @media (max-width: 800px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
 </style>
