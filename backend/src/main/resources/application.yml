@@ -9,3 +9,9 @@ spring:
     hibernate:
       ddl-auto: validate # 스키마는 db/01_init.sql에서 관리 / Hibernate는 관리만 담당한다.
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health # docker-compose healthcheck가 호출하는 /actuator/health만 노출
+
