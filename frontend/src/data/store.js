@@ -100,6 +100,9 @@ const TOPIC_HINTS = [
   { kw: /vue|v-model|ref|reactive/i, text: 'Vue 반응형은 ref 의 .value 접근과 reactive 객체의 교체 여부에서 문제가 생기는 경우가 많습니다. script 에서는 .value 를 통해 수정해야 화면이 갱신됩니다.', src: '강의자료 6주차 Vue 반응형 p.9' },
   { kw: /git|커밋|브랜치|rebase|merge/i, text: 'Git 문제는 현재 상태를 git status 와 git log --oneline --graph 로 먼저 확인하는 것이 출발점입니다. 진행 중인 작업을 취소하려면 --abort, 되돌리려면 reflog 를 활용합니다.', src: '강의자료 1주차 Git 브랜치 전략 p.14' },
 ]
+// AI 답변이 붙기까지 걸리는 시간. 시연에서 '생성 중' 상태를 보여주려고 길게 잡았다
+const AI_ANSWER_DELAY_MS = 15000
+
 function scheduleAi(id) {
   setTimeout(() => {
     const list = questions.all(); const q = list.find(q => q.id === id)
@@ -119,7 +122,7 @@ function scheduleAi(id) {
     })
     q.status = confidence >= 70 ? 'AI_ANSWERED' : 'REVIEW'
     questions.save(list)
-  }, 1800)
+  }, AI_ANSWER_DELAY_MS)
 }
 
 // ── 다른 탭·창에서 저장소가 바뀌면 화면 갱신 (같은 브라우저 프로필 안에서 동작) ──

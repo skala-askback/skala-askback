@@ -1,6 +1,6 @@
 -- user table 생성
 CREATE TABLE IF NOT EXISTS users (
-    id             BIGSERIAL PRIMARY KEY,
+    id             BIGSERIAL    PRIMARY KEY,   -- PostgreSQL 자동 증가 (MariaDB의 AUTO_INCREMENT 에 해당)
     login_id       VARCHAR(50)  NOT NULL,
     password_hash  VARCHAR(255) NOT NULL,
     name           VARCHAR(50)  NOT NULL,
