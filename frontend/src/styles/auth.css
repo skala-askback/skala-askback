@@ -1,0 +1,22 @@
+/* 포털 로그인 화면 스타일 (student.skala-ai.com 에서 추출) */
+.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e1b4b 100%); }
+.login-card { width: 100%; max-width: 480px; background: #fff; border-radius: 24px; padding: 44px 32px 36px; box-shadow: 0 32px 80px rgba(0,0,0,.4); display: flex; flex-direction: column; gap: 18px; }
+.login-logo { display: flex; align-items: center; justify-content: space-between; }
+.logo-text { font-size: 26px; font-weight: 900; color: #6b35ff; letter-spacing: 1.5px; }
+.logo-badge { font-size: 11px; font-weight: 700; color: #6b35ff; background: #ede9fe; padding: 4px 12px; border-radius: 20px; }
+.role-toggle { display: flex; background: #f1f5f9; border-radius: 12px; padding: 4px; gap: 4px; }
+.role-btn { flex: 1; padding: 9px; border: none; background: none; border-radius: 9px; font-size: 13px; font-weight: 700; color: #94a3b8; cursor: pointer; transition: .15s; font-family: inherit; }
+.role-btn.active { background: #fff; color: #6b35ff; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.login-hero { text-align: center; }
+.login-title { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 8px; }
+.login-desc { font-size: 13px; color: #64748b; line-height: 1.6; margin: 0; }
+.login-desc b { color: #0f172a; font-weight: 700; }
+.login-form { display: flex; flex-direction: column; gap: 10px; }
+.input { width: 100%; padding: 12px 14px; border: 1.5px solid #e2e8f0; border-radius: 14px; font-size: 14px; outline: none; background: #fff; font-family: inherit; color: #0f172a; }
+.input:focus { border-color: #6b35ff; }
+.input.bad { border-color: #dc2626; }
+.login-btn { width: 100%; padding: 13px; margin-top: 4px; background: #6b35ff; color: #fff; border: none; border-radius: 14px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.login-btn:hover { background: #5a2de0; }
+.error { font-size: 12px; color: #dc2626; margin: 0; text-align: center; }
+.login-notice { font-size: 12px; color: #94a3b8; text-align: center; margin: 0; }
+.link { color: #6b35ff; font-weight: 700; }

@@ -1,0 +1,116 @@
+// 앱 최초 실행 시 localStorage 에 심는 질문/답변 목 데이터
+// answers[].type : 'ai' | 'professor' | 'student'
+const AI = 'aSkback AI'
+const DISCLAIMER = '저는 강의자료와 과거 질문·답변을 참고해 먼저 답변을 드리고 있습니다. 현재 베타 기능이라 답변이 정확하지 않을 수 있으며, 신뢰도가 낮은 경우 교수님께 검토를 요청합니다.'
+
+export const mockQuestions = [
+  {
+    id: 1001, subject: '웹 서비스 개발 mini-Project', date: '2026-09-02',
+    title: '목록 조회에서 쿼리가 여러 번 나가는 이유가 뭔가요?',
+    content: '@OneToMany 연관관계를 걸고 게시글 목록을 조회하면 로그에 select 가 게시글 수만큼 반복해서 찍힙니다.\nfetch join 을 써야 하는지, 아니면 EAGER 로 바꾸면 되는지 헷갈립니다.',
+    tags: ['jpa', 'spring boot', 'n+1'], authorId: 'G000', authorName: '이학생', views: 42, likes: 3,
+    createdAt: '2026-09-02T10:12:00', status: 'ANSWERED',
+    answers: [
+      { id: 1, type: 'ai', author: AI, createdAt: '2026-09-02T10:12:08', confidence: 92, likes: 2,
+        content: '안녕하세요, aSkback AI입니다. 이학생님.\n\n말씀하신 현상은 JPA의 N+1 문제입니다. 목록을 1번 조회한 뒤, 각 게시글의 연관 엔티티를 접근할 때마다 추가 select 가 나가기 때문에 게시글 수(N)만큼 쿼리가 반복됩니다.\n\n지연 로딩(LAZY) 자체는 버그가 아니라 기본 전략이고, 목록처럼 연관 엔티티를 함께 써야 하는 조회에서만 fetch join 으로 한 번에 가져오면 됩니다. EAGER 로 바꾸면 모든 조회에 영향을 주기 때문에 권장하지 않습니다.',
+        sources: [{ type: 'lecture', label: '강의자료 4주차 JPA 연관관계 p.18' }, { type: 'question', label: '과거 질문 Q-812 · fetch join과 @EntityGraph 차이' }],
+        disclaimer: DISCLAIMER },
+      { id: 2, type: 'professor', author: '김교수', authorId: 'G001', createdAt: '2026-09-02T13:30:00', likes: 5,
+        content: 'AI 답변이 정확합니다. 한 가지만 덧붙이면, 이번 주 실습 범위에서는 fetch join 까지만 이해하면 충분합니다.\n@EntityGraph 나 BatchSize 는 다음 주 성능 최적화 시간에 다룰 예정이니 지금은 넘어가셔도 됩니다.' },
+      { id: 3, type: 'student', author: '이학생', authorId: 'G000', createdAt: '2026-09-02T14:02:00', likes: 0,
+        content: '감사합니다! fetch join 으로 바꾸니 쿼리 1번으로 줄었습니다.' },
+    ],
+  },
+  {
+    id: 1002, subject: '컨테이너 이해 및 애플리케이션 컨테이너화', date: '2026-08-25',
+    title: '컨테이너끼리 통신이 안 됩니다 (connection refused)',
+    content: 'docker run 으로 spring 앱과 postgres 를 각각 띄웠는데, 앱에서 localhost:5432 로 접속하면 connection refused 가 납니다.\n둘 다 정상 실행 중인 건 docker ps 로 확인했습니다.',
+    tags: ['docker', 'network', 'postgres'], authorId: 'G000', authorName: '이학생', views: 31, likes: 1,
+    createdAt: '2026-08-25T15:40:00', status: 'REVIEW',
+    answers: [
+      { id: 1, type: 'ai', author: AI, createdAt: '2026-08-25T15:40:09', confidence: 58, likes: 0,
+        content: '안녕하세요, aSkback AI입니다. 이학생님.\n\n컨테이너 안에서 localhost 는 그 컨테이너 자기 자신을 가리키므로, 앱 컨테이너에서 localhost:5432 로 접속하면 postgres 컨테이너에 닿지 않습니다.\n\n같은 docker network 에 두 컨테이너를 넣고, 접속 주소를 postgres 컨테이너 이름으로 바꾸면 해결될 가능성이 높습니다. 다만 실행하신 docker run 옵션에 따라 원인이 다를 수 있어 교수님 확인을 요청드렸습니다.',
+        sources: [{ type: 'lecture', label: '강의자료 7주차 컨테이너 네트워크 p.23' }],
+        disclaimer: DISCLAIMER, reviewReason: '강의자료 매칭 약함 · 실행 명령을 알 수 없어 원인 확정 불가' },
+    ],
+  },
+  {
+    id: 1003, subject: 'Front-framework: Vue.js', date: '2026-08-19',
+    title: 'v-model 로 묶은 값이 화면에 바로 안 바뀝니다',
+    content: 'ref 로 만든 배열에 push 를 했는데 목록이 갱신되지 않습니다. 새로고침하면 보입니다.',
+    tags: ['vue', 'reactivity'], authorId: 'G000', authorName: '이학생', views: 18, likes: 0,
+    createdAt: '2026-08-19T11:05:00', status: 'AI_ANSWERED',
+    answers: [
+      { id: 1, type: 'ai', author: AI, createdAt: '2026-08-19T11:05:07', confidence: 88, likes: 1,
+        content: '안녕하세요, aSkback AI입니다. 이학생님.\n\nref 로 감싼 배열은 .value 를 통해 접근해야 반응형이 유지됩니다. const list = ref([]) 라면 list.push(...) 가 아니라 list.value.push(...) 로 써야 화면이 갱신됩니다.\n\n템플릿 안에서는 .value 없이 list 로 바로 쓰면 되지만, script 에서는 항상 .value 가 필요합니다.',
+        sources: [{ type: 'lecture', label: '강의자료 6주차 Vue 반응형 p.9' }, { type: 'question', label: '과거 질문 Q-455 · reactive 와 ref 차이' }],
+        disclaimer: DISCLAIMER },
+    ],
+  },
+  {
+    id: 1004, subject: 'Spring AI', date: '2026-08-31',
+    title: 'API 키를 application.yml 에 넣어도 되나요?',
+    content: 'Spring AI 실습에서 OpenAI 키를 yml 에 직접 적었는데 깃에 올리면 안 될 것 같아서요. 어떻게 관리하는 게 맞나요?',
+    tags: ['spring ai', 'security', 'config'], authorId: 'G000', authorName: '이학생', views: 57, likes: 6,
+    createdAt: '2026-08-31T16:20:00', status: 'ANSWERED',
+    answers: [
+      { id: 1, type: 'ai', author: AI, createdAt: '2026-08-31T16:20:06', confidence: 95, likes: 3,
+        content: '안녕하세요, aSkback AI입니다. 이학생님.\n\n키를 yml 에 직접 쓰면 저장소에 올라가므로 위험합니다. yml 에는 ${OPENAI_API_KEY} 처럼 환경변수 참조만 두고, 실제 값은 실행 환경(.env, IDE 실행 설정, 서버 환경변수)에서 주입하는 것이 표준입니다.\n\n.env 는 .gitignore 에 넣고, 팀원 공유용으로 값이 비어 있는 .env.example 만 커밋하면 됩니다.',
+        sources: [{ type: 'lecture', label: '강의자료 8주차 Spring AI 설정 p.5' }, { type: 'question', label: '과거 질문 Q-901 · 환경변수 주입 방법' }],
+        disclaimer: DISCLAIMER },
+      { id: 2, type: 'professor', author: '김교수', authorId: 'G001', createdAt: '2026-08-31T18:05:00', likes: 8,
+        content: '맞습니다. 실무에서도 동일하게 합니다. 실제로 키가 커밋된 사례가 매 기수 나오니, 커밋 전에 git diff 로 yml 을 한 번 더 확인하는 습관을 들이세요.\n이미 올렸다면 키를 즉시 폐기하고 새로 발급받아야 합니다. 히스토리에서 지우는 것만으로는 부족합니다.' },
+    ],
+  },
+  {
+    id: 1005, subject: '쿠버네티스 이해 및 애플리케이션 배포', date: '2026-08-27',
+    title: 'Pod 가 계속 Pending 상태예요',
+    content: 'kubectl apply 후 pod 가 Pending 에서 안 넘어갑니다. describe 해보면 0/1 nodes are available 이라고 나옵니다.',
+    tags: ['kubernetes', 'pod', 'scheduling'], authorId: 'G002', authorName: '박지훈', views: 24, likes: 2,
+    createdAt: '2026-08-27T14:11:00', status: 'REVIEW',
+    answers: [
+      { id: 1, type: 'ai', author: AI, createdAt: '2026-08-27T14:11:10', confidence: 61, likes: 0,
+        content: '안녕하세요, aSkback AI입니다. 박지훈님.\n\n0/1 nodes are available 은 스케줄러가 pod 를 배치할 노드를 찾지 못했다는 뜻입니다. 실습 환경(minikube)에서는 리소스 요청(requests)이 노드 용량보다 크거나, PVC 가 바인딩되지 않은 경우가 흔합니다.\n\ndescribe 출력의 Events 항목 마지막 줄에 정확한 이유가 있으니 그 부분을 함께 올려주시면 더 정확히 안내드릴 수 있습니다.',
+        sources: [{ type: 'lecture', label: '강의자료 7주차 k8s 스케줄링 p.31' }],
+        disclaimer: DISCLAIMER, reviewReason: '아직 배우지 않은 개념(PVC·taint) 포함 가능 · Events 로그 없음' },
+    ],
+  },
+  {
+    id: 1006, subject: '입과 오리엔테이션 및 Git이해/활용', date: '2026-07-14',
+    title: 'rebase 하다가 충돌이 났는데 되돌리고 싶어요',
+    content: 'git rebase main 하다가 충돌이 나서 파일이 엉망이 됐습니다. 그냥 rebase 전으로 돌아가고 싶은데 방법이 있나요?',
+    tags: ['git', 'rebase'], authorId: 'G003', authorName: '이서연', views: 88, likes: 9,
+    createdAt: '2026-07-15T09:30:00', status: 'ANSWERED',
+    answers: [
+      { id: 1, type: 'ai', author: AI, createdAt: '2026-07-15T09:30:05', confidence: 97, likes: 4,
+        content: '안녕하세요, aSkback AI입니다. 이서연님.\n\n진행 중인 rebase 를 취소하고 시작 전 상태로 돌아가려면 git rebase --abort 를 실행하면 됩니다. 작업 트리와 브랜치가 rebase 직전으로 복구됩니다.\n\n이미 rebase 를 끝낸 뒤라면 git reflog 로 이전 HEAD 를 찾아 git reset --hard 로 돌아갈 수 있습니다.',
+        sources: [{ type: 'lecture', label: '강의자료 1주차 Git 브랜치 전략 p.14' }, { type: 'question', label: '과거 질문 Q-102 · merge 와 rebase 차이' }],
+        disclaimer: DISCLAIMER },
+      { id: 2, type: 'professor', author: '김교수', authorId: 'G001', createdAt: '2026-07-15T11:00:00', likes: 11,
+        content: '--abort 가 정답입니다. 그리고 첫 주에는 rebase 보다 merge 를 쓰세요. rebase 는 히스토리를 다시 쓰기 때문에 팀 프로젝트에서 사고가 잦습니다. 팀 프로젝트 주간에 다시 다루겠습니다.' },
+      { id: 3, type: 'student', author: '박지훈', authorId: 'G002', createdAt: '2026-07-15T11:20:00', likes: 1,
+        content: '저도 같은 문제 겪었는데 --abort 로 해결했습니다. 감사합니다.' },
+    ],
+  },
+  {
+    id: 1007, subject: 'RAG Pipeline 설계 및 구축', date: '2026-09-28',
+    title: '청크 크기는 몇 토큰이 적당한가요?',
+    content: 'PDF 강의자료를 RAG 에 넣으려는데 청크를 얼마나 잘라야 할지 모르겠습니다. 너무 작으면 문맥이 끊기고, 크면 검색이 부정확해지는 것 같아요.',
+    tags: ['rag', 'chunking', 'embedding'], authorId: 'G000', authorName: '이학생', views: 12, likes: 1,
+    createdAt: '2026-09-01T17:45:00', status: 'AI_ANSWERED',
+    answers: [
+      { id: 1, type: 'ai', author: AI, createdAt: '2026-09-01T17:45:08', confidence: 84, likes: 2,
+        content: '안녕하세요, aSkback AI입니다. 이학생님.\n\n정답 값은 없지만 강의자료 같은 문서는 300~500 토큰 정도에서 시작하고, 청크 간 50~100 토큰을 겹치게(overlap) 두는 것이 일반적인 출발점입니다.\n\n중요한 건 숫자보다 검색 품질을 직접 확인하는 것입니다. 같은 질문 10개로 청크 크기를 바꿔가며 검색 결과를 비교해 보세요. 이 과목은 9월 28일에 시작하니, 그때 실습에서 직접 비교하게 됩니다.',
+        sources: [{ type: 'lecture', label: '강의자료 12주차 RAG 파이프라인 p.7' }, { type: 'question', label: '과거 질문 Q-1188 · overlap 을 왜 두나요' }],
+        disclaimer: DISCLAIMER },
+    ],
+  },
+  {
+    id: 1008, subject: '웹 서비스 개발 mini-Project', date: '2026-09-02',
+    title: 'CORS 에러가 나는데 백엔드 설정은 했습니다',
+    content: 'Vue 에서 axios 로 localhost:8080 호출하면 CORS 에러가 납니다. WebMvcConfigurer 로 allowedOrigins 설정했는데도 그렇습니다.',
+    tags: ['cors', 'spring boot', 'vue'], authorId: 'G000', authorName: '이학생', views: 3, likes: 0,
+    createdAt: '2026-09-02T18:30:00', status: 'AI_PENDING',
+    answers: [],
+  },
+]

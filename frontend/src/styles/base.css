@@ -1,0 +1,42 @@
+/* ── SKALA 훈련생 포털 디자인 토큰 (student.skala-ai.com 에서 추출) ── */
+:root {
+  --brand: #6B35FF;            /* rgb(107,53,255) */
+  --brand-2: #4F46E5;          /* today-card 그라데이션 끝 */
+  --brand-light: #A78BFA;      /* 아바타 그라데이션 끝 */
+  --brand-50: #F5F3FF;         /* row-active */
+  --brand-hover: #FAF5FF;      /* row hover */
+  --brand-badge-bg: #EDE9FE;   /* 로그인 배지 */
+  --brand-deep: #4C1D95;       /* 반 텍스트 */
+
+  --text-900: #0F172A;
+  --text-700: #374151;
+  --text-600: #475569;
+  --text-500: #64748B;
+  --text-400: #94A3B8;
+
+  --bg-page: #F1F5F9;
+  --bg-soft: #F8FAFC;
+  --bg-weekend: #FAFAFA;
+  --bg-holiday: #FFF5F5;
+  --holiday-text: #DC2626;
+
+  --border: #E2E8F0;
+  --border-soft: #F1F5F9;
+
+  --nav-active-bg: #FEF9C3;
+  --nav-active-text: #92400E;
+
+  --chip-blue-bg: #DBEAFE;
+  --chip-blue-text: #1D4ED8;
+
+  --shadow-card: 0 1px 4px rgba(0,0,0,.06);
+  --shadow-hero: 0 6px 24px rgba(107,53,255,.32);
+
+  --font: -apple-system, system-ui, Pretendard, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body, #app { margin: 0; height: 100%; }
+body { font-family: var(--font); color: var(--text-900); background: var(--bg-page); -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-decoration: none; }
+button { font-family: var(--font); }
+input, select { font-family: var(--font); }
